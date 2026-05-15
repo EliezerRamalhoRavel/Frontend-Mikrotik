@@ -12,6 +12,8 @@ Commit analisado: `2f51e4c`
 
 ```bash
 npm run build
+/home/elizerramalho/evo/api_mikrotik/venv/bin/pytest /home/elizerramalho/evo/api_mikrotik/tests/test_mikrotik_users_feature.py -q
+/home/elizerramalho/evo/api_mikrotik/venv/bin/pytest
 ```
 
 ## Resultado atual
@@ -53,3 +55,57 @@ O build passou, mas a regra do projeto exige validacao TDD/happy path/sad path e
 ## Status
 
 Backend da feature implementado com TDD especifico de usuarios PPP e robos produtivos preservados. Frontend implementado com a camada de confirmacao nas acoes sensiveis e validado com `npm run build`. A cobertura frontend de 95% nao foi comprovada porque o projeto ainda nao possui suite automatizada configurada.
+
+## Refatoracao 2026-05-15 - Usuarios administrativos do roteador
+
+Objetivo do ajuste: refatorar a funcionalidade de usuarios do MikroTik para buscar usuarios administrativos do RouterOS por `/user/print`, como `ravel` e `teste.ravel`, deixando de consultar usuarios PPP por `/ppp/secret/print`.
+
+Arquivos backend alterados:
+
+- [x] `/home/elizerramalho/evo/api_mikrotik/tests/test_mikrotik_users_feature.py`: testes TDD atualizados para happy path e sad path de usuarios administrativos do roteador
+- [x] `/home/elizerramalho/evo/api_mikrotik/app/workers/mikrotik_user_utils.py`: listagem alterada para `/user/print` e atualizacao alterada para `/user/set`
+- [x] `/home/elizerramalho/evo/api_mikrotik/app/services/mikrotik_user_service.py`: service alterado para `list_router_users` e `update_router_user`
+- [x] `/home/elizerramalho/evo/api_mikrotik/app/api/endpoints/mikrotik_users.py`: endpoint alterado para `/api/v1/devices/{device_id}/router-users`
+- [x] `/home/elizerramalho/evo/api_mikrotik/app/api/endpoints/auth.py`: escopo do step-up token alterado para `mikrotik_router_users`
+- [x] `/home/elizerramalho/evo/api_mikrotik/app/api/models/mikrotik_users.py`: retorno alterado para `id`, `name`, `disabled`, `group`, `address`, `last_logged_in`
+- [x] `/home/elizerramalho/evo/api_mikrotik/app/core/config.py`: mock local renomeado para `MIKROTIK_ROUTER_USERS_MOCK_ENABLED` e `MIKROTIK_ROUTER_USERS_MOCK_HOST`
+
+Arquivos frontend alterados:
+
+- [x] `/home/elizerramalho/evo/Frontend-Mikrotik/src/api/mikrotikUsersService.ts`: chamadas alteradas para `/devices/{deviceId}/router-users`
+- [x] `/home/elizerramalho/evo/Frontend-Mikrotik/src/types/mikrotikUsers.ts`: tipos alterados para usuarios administrativos do roteador
+- [x] `/home/elizerramalho/evo/Frontend-Mikrotik/src/pages/MikrotikUsersPage.tsx`: tabela alterada para exibir grupo, endereco permitido e ultimo login
+- [x] `/home/elizerramalho/evo/Frontend-Mikrotik/src/pages/Mikrotiks.tsx`: titulo do botao alterado para usuarios do roteador
+
+Checklist TDD e validacao:
+
+- [x] Teste happy path do worker validando `/user/print`
+- [x] Teste happy path do worker validando `/user/set`
+- [x] Teste sad path do service quando o RouterOS falha
+- [x] Teste sad path de payload vazio no PATCH
+- [x] Teste de step-up token invalido ou ausente
+- [x] Teste de auditoria sem registrar senha
+- [x] `/home/elizerramalho/evo/api_mikrotik/tests/test_mikrotik_users_feature.py`: 8 testes passaram
+- [x] `/home/elizerramalho/evo/api_mikrotik/app/api/endpoints/mikrotik_users.py`: 100% no recorte de cobertura do teste da feature
+- [x] `/home/elizerramalho/evo/api_mikrotik/app/services/mikrotik_user_service.py`: 100% no recorte de cobertura do teste da feature
+- [x] `/home/elizerramalho/evo/api_mikrotik/app/workers/mikrotik_user_utils.py`: 100% no recorte de cobertura do teste da feature
+- [ ] Cobertura global backend minima de 95% comprovada
+- [x] Build frontend executado com sucesso por `npm run build`
+- [ ] Cobertura frontend minima de 95% comprovada
+
+Resultado dos comandos:
+
+- [x] `/home/elizerramalho/evo/api_mikrotik/venv/bin/pytest /home/elizerramalho/evo/api_mikrotik/tests/test_mikrotik_users_feature.py -q`: 8 passed
+- [x] `npm run build`: executado com sucesso em `/home/elizerramalho/evo/Frontend-Mikrotik`
+- [ ] `/home/elizerramalho/evo/api_mikrotik/venv/bin/pytest`: interrompido na coleta com 8 erros preexistentes
+
+Erros que ainda bloqueiam a suite completa backend:
+
+- [ ] `/home/elizerramalho/evo/api_mikrotik/tests/api/test_ping.py`: conflito de nome com `/home/elizerramalho/evo/api_mikrotik/manual_tests/test_ping.py`
+- [ ] `/home/elizerramalho/evo/api_mikrotik/tests/repositories/test_management_repo_coverage.py`: importa `ManagementUserRepository`, mas `/home/elizerramalho/evo/api_mikrotik/app/repositories/management_repos.py` nao exporta essa classe
+- [ ] `/home/elizerramalho/evo/api_mikrotik/tests/test_z_final_coverage.py`: importa `ManagementUserRepository`, mas `/home/elizerramalho/evo/api_mikrotik/app/repositories/management_repos.py` nao exporta essa classe
+- [ ] `/home/elizerramalho/evo/api_mikrotik/tests/workers/test_backup_worker_deep.py`: importa `_process_backup_cycle`, mas `/home/elizerramalho/evo/api_mikrotik/app/workers/backup_tasks.py` nao exporta essa funcao
+- [ ] `/home/elizerramalho/evo/api_mikrotik/tests/workers/test_notification_logic_coverage.py`: importa `_process_ping_target`, mas `/home/elizerramalho/evo/api_mikrotik/app/workers/ping_tasks.py` nao exporta essa funcao
+- [ ] `/home/elizerramalho/evo/api_mikrotik/tests/workers/test_tasks_coverage.py`: importa `check_mikrotik_api`, mas `/home/elizerramalho/evo/api_mikrotik/app/workers/mikrotik_tasks.py` nao exporta essa funcao
+- [ ] `/home/elizerramalho/evo/api_mikrotik/tests/workers/test_tasks_deep_coverage.py`: importa `_process_ping_target`, mas `/home/elizerramalho/evo/api_mikrotik/app/workers/ping_tasks.py` nao exporta essa funcao
+- [ ] `/home/elizerramalho/evo/api_mikrotik/tests/workers/test_worker_logic.py`: importa `_process_ping_target`, mas `/home/elizerramalho/evo/api_mikrotik/app/workers/ping_tasks.py` nao exporta essa funcao

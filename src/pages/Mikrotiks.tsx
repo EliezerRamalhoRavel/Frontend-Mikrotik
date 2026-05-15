@@ -344,7 +344,7 @@ export default function MikrotiksPage() {
                             size="icon"
                             onClick={() => navigate(`/mikrotiks/${mk.id}/users`)}
                             className="h-8 w-8 hover:bg-emerald-50 hover:text-emerald-700"
-                            title="Usuários PPP"
+                            title="Usuários do roteador"
                           >
                             <Users className="h-4 w-4" />
                           </Button>

@@ -2,9 +2,9 @@ export interface MikrotikUser {
   id: string;
   name: string;
   disabled: boolean;
-  profile: string | null;
-  comment: string | null;
-  service: string | null;
+  group: string | null;
+  address: string | null;
+  last_logged_in: string | null;
 }
 
 export interface MikrotikUserUpdate {

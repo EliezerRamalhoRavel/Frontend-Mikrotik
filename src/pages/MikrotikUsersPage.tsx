@@ -63,7 +63,7 @@ export default function MikrotikUsersPage() {
   const [pendingAction, setPendingAction] = useState<PendingAction | null>(null);
   const [isConfirmingPassword, setIsConfirmingPassword] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
-  const [sortConfig, setSortConfig] = useState<{ field: "name" | "profile" | "service" | "status"; direction: "asc" | "desc" } | null>(null);
+  const [sortConfig, setSortConfig] = useState<{ field: "name" | "group" | "address" | "last_logged_in" | "status"; direction: "asc" | "desc" } | null>(null);
 
   const debouncedSearchTerm = useDebounce(searchTerm, 300);
   const hasUsers = useMemo(() => users.length > 0, [users.length]);
@@ -102,12 +102,12 @@ export default function MikrotikUsersPage() {
     try {
       const [deviceData, userData] = await Promise.all([
         mikrotikService.getById(deviceId),
-        mikrotikUsersService.listPppUsers(deviceId),
+        mikrotikUsersService.listRouterUsers(deviceId),
       ]);
       setDevice(deviceData);
       setUsers(userData);
     } catch (error) {
-      toast.error("Erro ao carregar usuários PPP.");
+      toast.error("Erro ao carregar usuários do roteador.");
     } finally {
       setIsLoading(false);
     }
@@ -131,7 +131,7 @@ export default function MikrotikUsersPage() {
     setPasswordUser(null);
   };
 
-  const handleSort = (field: "name" | "profile" | "service" | "status") => {
+  const handleSort = (field: "name" | "group" | "address" | "last_logged_in" | "status") => {
     setSortConfig((current) => {
       if (current?.field === field) {
         if (current.direction === "asc") return { field, direction: "desc" };
@@ -141,7 +141,7 @@ export default function MikrotikUsersPage() {
     });
   };
 
-  const getSortIcon = (field: "name" | "profile" | "service" | "status") => {
+  const getSortIcon = (field: "name" | "group" | "address" | "last_logged_in" | "status") => {
     if (sortConfig?.field !== field) return <ArrowUpDown className="ml-2 h-4 w-4 opacity-50" />;
     return sortConfig.direction === "asc"
       ? <ArrowUp className="ml-2 h-4 w-4 text-blue-600" />
@@ -159,7 +159,7 @@ export default function MikrotikUsersPage() {
       const { step_up_token } = await authService.confirmPassword(systemPassword);
 
       if (currentAction.kind === "toggle") {
-        await mikrotikUsersService.updatePppUser(
+        await mikrotikUsersService.updateRouterUser(
           deviceId,
           currentAction.user.id,
           { disabled: !currentAction.user.disabled },
@@ -170,7 +170,7 @@ export default function MikrotikUsersPage() {
         )));
         toast.success(currentAction.user.disabled ? "Usuário habilitado." : "Usuário desabilitado.");
       } else {
-        await mikrotikUsersService.updatePppUser(
+        await mikrotikUsersService.updateRouterUser(
           deviceId,
           currentAction.user.id,
           { password: currentAction.password },
@@ -266,7 +266,7 @@ export default function MikrotikUsersPage() {
           ) : !hasUsers || !hasFilteredUsers ? (
             <div className="flex h-64 flex-col items-center justify-center text-muted-foreground">
               <UserRound className="mb-4 h-12 w-12 opacity-20" />
-              <p>{hasUsers ? "Nenhum usuário PPP encontrado com os filtros atuais." : "Nenhum usuário PPP encontrado."}</p>
+              <p>{hasUsers ? "Nenhum usuário do roteador encontrado com os filtros atuais." : "Nenhum usuário do roteador encontrado."}</p>
             </div>
           ) : (
             <Table>
@@ -275,11 +275,14 @@ export default function MikrotikUsersPage() {
                   <TableHead className="cursor-pointer hover:bg-zinc-100 transition-colors" onClick={() => handleSort("name")}>
                     <div className="flex items-center">Usuário {getSortIcon("name")}</div>
                   </TableHead>
-                  <TableHead className="cursor-pointer hover:bg-zinc-100 transition-colors" onClick={() => handleSort("profile")}>
-                    <div className="flex items-center">Perfil {getSortIcon("profile")}</div>
+                  <TableHead className="cursor-pointer hover:bg-zinc-100 transition-colors" onClick={() => handleSort("group")}>
+                    <div className="flex items-center">Grupo {getSortIcon("group")}</div>
                   </TableHead>
-                  <TableHead className="cursor-pointer hover:bg-zinc-100 transition-colors" onClick={() => handleSort("service")}>
-                    <div className="flex items-center">Serviço {getSortIcon("service")}</div>
+                  <TableHead className="cursor-pointer hover:bg-zinc-100 transition-colors" onClick={() => handleSort("address")}>
+                    <div className="flex items-center">Endereço permitido {getSortIcon("address")}</div>
+                  </TableHead>
+                  <TableHead className="cursor-pointer hover:bg-zinc-100 transition-colors" onClick={() => handleSort("last_logged_in")}>
+                    <div className="flex items-center">Último login {getSortIcon("last_logged_in")}</div>
                   </TableHead>
                   <TableHead className="cursor-pointer hover:bg-zinc-100 transition-colors" onClick={() => handleSort("status")}>
                     <div className="flex items-center">Status {getSortIcon("status")}</div>
@@ -296,15 +299,16 @@ export default function MikrotikUsersPage() {
                       <TableCell>
                         <div className="flex flex-col">
                           <span className="font-bold text-zinc-900 dark:text-zinc-100">{user.name}</span>
-                          {user.comment && (
-                            <span className="max-w-[420px] truncate text-xs text-zinc-500" title={user.comment}>
-                              {user.comment}
+                          {user.id && (
+                            <span className="max-w-[420px] truncate text-xs text-zinc-500" title={user.id}>
+                              ID RouterOS: {user.id}
                             </span>
                           )}
                         </div>
                       </TableCell>
-                      <TableCell>{user.profile || <span className="text-zinc-300">-</span>}</TableCell>
-                      <TableCell>{user.service || <span className="text-zinc-300">-</span>}</TableCell>
+                      <TableCell>{user.group || <span className="text-zinc-300">-</span>}</TableCell>
+                      <TableCell>{user.address || <span className="text-zinc-300">-</span>}</TableCell>
+                      <TableCell>{user.last_logged_in || <span className="text-zinc-300">-</span>}</TableCell>
                       <TableCell>{getStatusBadge(user)}</TableCell>
                       <TableCell className="text-right pr-6">
                         <div className="flex items-center justify-end gap-2">
