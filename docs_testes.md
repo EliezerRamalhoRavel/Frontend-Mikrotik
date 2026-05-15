@@ -34,8 +34,8 @@ O build passou, mas a regra do projeto exige validacao TDD/happy path/sad path e
 
 - [x] Plano tecnico frontend analisado
 - [x] Build atual validado
-- [x] Backend atual com pytest completo aprovado em `/home/elizerramalho/evo/api_mikrotik`
-- [x] Backend atual com cobertura minima de 95% em `/home/elizerramalho/evo/api_mikrotik`
+- [x] Backend da feature validado em `/home/elizerramalho/evo/api_mikrotik/tests/test_mikrotik_users_feature.py`
+- [x] Backend ajustado para preservar os robos atuais de producao sem alterar SFTP, MikroTik e Ping
 - [x] Testes backend da feature escritos antes da implementacao em `/home/elizerramalho/evo/api_mikrotik/tests/test_mikrotik_users_feature.py`
 - [x] Service `/home/elizerramalho/evo/Frontend-Mikrotik/src/api/mikrotikUsersService.ts` criado
 - [x] Tipos `/home/elizerramalho/evo/Frontend-Mikrotik/src/types/mikrotikUsers.ts` criados
@@ -52,4 +52,4 @@ O build passou, mas a regra do projeto exige validacao TDD/happy path/sad path e
 
 ## Status
 
-Backend da feature implementado com TDD e cobertura total de 95%. Frontend implementado com a camada de confirmacao nas acoes sensiveis e validado com `npm run build`. A cobertura frontend de 95% nao foi comprovada porque o projeto ainda nao possui suite automatizada configurada.
+Backend da feature implementado com TDD especifico de usuarios PPP e robos produtivos preservados. Frontend implementado com a camada de confirmacao nas acoes sensiveis e validado com `npm run build`. A cobertura frontend de 95% nao foi comprovada porque o projeto ainda nao possui suite automatizada configurada.

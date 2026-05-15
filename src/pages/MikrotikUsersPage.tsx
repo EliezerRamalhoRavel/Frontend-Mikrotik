@@ -232,7 +232,7 @@ export default function MikrotikUsersPage() {
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div className="min-w-0">
           <h1 className="text-3xl font-bold tracking-tight text-zinc-900 dark:text-zinc-100">
-            Usuários PPP
+            Usuários - {device?.name || "MikroTik"}
           </h1>
           <p className="text-sm text-muted-foreground">{device?.ip_address || "Carregando dispositivo..."}</p>
         </div>
