@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import {
   ArrowLeft,
@@ -14,6 +14,8 @@ import {
   RefreshCw,
   Router,
   Search,
+  ToggleLeft,
+  ToggleRight,
   UserRound,
 } from "lucide-react";
 import { toast } from "sonner";
@@ -42,13 +44,17 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { Spinner } from "@/components/ui/spinner";
 import { useDebounce } from "@/hooks/useDebounce";
+import { setRouterUserPasswordProgress } from "@/lib/routerUserPasswordProgress";
 import type { Mikrotik } from "@/types/mikrotik";
 import type { MikrotikUser } from "@/types/mikrotikUsers";
 
 type PendingAction =
-  | { kind: "toggle"; user: MikrotikUser }
-  | { kind: "password"; user: MikrotikUser; password: string };
+  | { kind: "password"; user: MikrotikUser; password: string }
+  | { kind: "status"; user: MikrotikUser; disabled: boolean };
+
+const RUNNING_JOB_STATUSES = ["pending", "processing", "retrying"];
 
 export default function MikrotikUsersPage() {
   const { deviceId } = useParams<{ deviceId: string }>();
@@ -91,14 +97,20 @@ export default function MikrotikUsersPage() {
   }, [users, debouncedSearchTerm, sortConfig]);
 
   const hasFilteredUsers = filteredUsers.length > 0;
+  const hasRunningJobs = useMemo(() => {
+    return users.some((user) => RUNNING_JOB_STATUSES.includes(user.job_status || ""));
+  }, [users]);
+  const hasActiveJob = (user: MikrotikUser | null) => {
+    return !!user && RUNNING_JOB_STATUSES.includes(user.job_status || "");
+  };
 
   const setLoadingFor = (userId: string, value: boolean) => {
     setRowLoading((current) => ({ ...current, [userId]: value }));
   };
 
-  const loadData = async () => {
+  const loadData = useCallback(async (options?: { silent?: boolean }) => {
     if (!deviceId) return;
-    setIsLoading(true);
+    if (!options?.silent) setIsLoading(true);
     try {
       const [deviceData, userData] = await Promise.all([
         mikrotikService.getById(deviceId),
@@ -106,29 +118,62 @@ export default function MikrotikUsersPage() {
       ]);
       setDevice(deviceData);
       setUsers(userData);
-    } catch (error) {
+    } catch {
       toast.error("Erro ao carregar usuários do roteador.");
     } finally {
-      setIsLoading(false);
+      if (!options?.silent) setIsLoading(false);
     }
-  };
+  }, [deviceId]);
 
   useEffect(() => {
     loadData();
-  }, [deviceId]);
+  }, [loadData]);
 
-  const handleToggleUser = async (user: MikrotikUser) => {
-    if (!deviceId || rowLoading[user.id]) return;
+  useEffect(() => {
+    if (!hasRunningJobs || !deviceId) return;
+    const interval = window.setInterval(() => {
+      loadData({ silent: true });
+    }, 5000);
+    return () => window.clearInterval(interval);
+  }, [hasRunningJobs, deviceId, loadData]);
 
-    setPendingAction({ kind: "toggle", user });
-    setActionUser(null);
-  };
+  useEffect(() => {
+    if (!deviceId || !device) return;
+
+    const runningPasswordUsers = users.filter((user) => (
+      user.job_action !== "status" && RUNNING_JOB_STATUSES.includes(user.job_status || "")
+    ));
+    const activeUser = runningPasswordUsers[0];
+
+    if (!activeUser) return;
+
+    setRouterUserPasswordProgress({
+      id: `${deviceId}:running-password-jobs`,
+      current: 1,
+      total: runningPasswordUsers.length,
+      deviceName: device.name || "MikroTik",
+      username: activeUser.name,
+      items: runningPasswordUsers.map((user) => ({
+        device_id: deviceId,
+        routeros_user_id: user.id,
+        device_name: device.name || "MikroTik",
+        username: user.name,
+      })),
+      startedAt: Date.now(),
+      updatedAt: Date.now(),
+    });
+  }, [device, deviceId, users]);
 
   const handlePasswordChange = async (password: string) => {
     if (!deviceId || !passwordUser) return;
 
     setPendingAction({ kind: "password", user: passwordUser, password });
     setPasswordUser(null);
+  };
+
+  const handleStatusChange = (user: MikrotikUser) => {
+    setPendingAction({ kind: "status", user, disabled: !user.disabled });
+    setActionUser(null);
   };
 
   const handleSort = (field: "name" | "group" | "address" | "last_logged_in" | "status") => {
@@ -149,7 +194,7 @@ export default function MikrotikUsersPage() {
   };
 
   const handleProtectedAction = async (systemPassword: string) => {
-    if (!deviceId || !pendingAction) return;
+    if (!pendingAction) return;
 
     const currentAction = pendingAction;
     setIsConfirmingPassword(true);
@@ -158,29 +203,35 @@ export default function MikrotikUsersPage() {
     try {
       const { step_up_token } = await authService.confirmPassword(systemPassword);
 
-      if (currentAction.kind === "toggle") {
-        await mikrotikUsersService.updateRouterUser(
-          deviceId,
-          currentAction.user.id,
-          { disabled: !currentAction.user.disabled },
-          step_up_token,
-        );
-        setUsers((current) => current.map((item) => (
-          item.id === currentAction.user.id ? { ...item, disabled: !currentAction.user.disabled } : item
-        )));
-        toast.success(currentAction.user.disabled ? "Usuário habilitado." : "Usuário desabilitado.");
-      } else {
-        await mikrotikUsersService.updateRouterUser(
-          deviceId,
-          currentAction.user.id,
-          { password: currentAction.password },
-          step_up_token,
-        );
-        toast.success("Senha alterada com sucesso.");
+      if (!deviceId) throw new Error("Dispositivo não identificado.");
+      const payload = currentAction.kind === "password"
+        ? { password: currentAction.password }
+        : { disabled: currentAction.disabled };
+      await mikrotikUsersService.updateRouterUser(deviceId, currentAction.user.id, payload, step_up_token);
+
+      if (currentAction.kind === "password") {
+        setRouterUserPasswordProgress({
+          id: `${deviceId}:${currentAction.user.id}:${Date.now()}`,
+          current: 1,
+          total: 1,
+          deviceName: device?.name || "MikroTik",
+          username: currentAction.user.name,
+          items: [{
+            device_id: deviceId,
+            routeros_user_id: currentAction.user.id,
+            device_name: device?.name || "MikroTik",
+            username: currentAction.user.name,
+          }],
+          startedAt: Date.now(),
+          updatedAt: Date.now(),
+        });
       }
 
+      toast.success("Solicitação enviada. A atualização continuará em segundo plano.");
+      await loadData();
+
       setPendingAction(null);
-    } catch (error) {
+    } catch {
       toast.error("Confirmação inválida ou ação não concluída.");
     } finally {
       setLoadingFor(currentAction.user.id, false);
@@ -189,8 +240,21 @@ export default function MikrotikUsersPage() {
   };
 
   const getConfirmTitle = () => {
-    if (pendingAction?.kind === "password") return "Confirmar alteração de senha";
-    return pendingAction?.user.disabled ? "Confirmar habilitação" : "Confirmar desabilitação";
+    if (pendingAction?.kind === "status") {
+      return pendingAction.disabled ? "Confirmar desativação" : "Confirmar ativação";
+    }
+    return "Confirmar solicitação de senha";
+  };
+
+  const getJobLabel = (user: MikrotikUser) => {
+    if (!user.job_status) return null;
+    const action = user.job_action === "status" ? "status" : "senha";
+    if (user.job_status === "pending") return action === "senha" ? "Atualizando senha..." : "Atualizando status...";
+    if (user.job_status === "processing") return action === "senha" ? "Atualizando senha..." : "Atualizando status...";
+    if (user.job_status === "retrying") return action === "senha" ? "Atualizando senha... nova tentativa" : "Atualizando status... nova tentativa";
+    if (user.job_status === "completed") return action === "senha" ? "Senha atualizada" : "Status atualizado";
+    if (user.job_status === "failed") return action === "senha" ? "Não foi possível atualizar a senha" : "Não foi possível atualizar o status";
+    return null;
   };
 
   const getStatusBadge = (user: MikrotikUser) => {
@@ -238,7 +302,7 @@ export default function MikrotikUsersPage() {
         </div>
 
         <div className="flex shrink-0 items-center gap-2">
-          <Button variant="outline" onClick={loadData} disabled={isLoading}>
+          <Button variant="outline" onClick={() => loadData()} disabled={isLoading}>
             {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RefreshCw className="mr-2 h-4 w-4" />}
             Atualizar
           </Button>
@@ -299,9 +363,22 @@ export default function MikrotikUsersPage() {
                       <TableCell>
                         <div className="flex flex-col">
                           <span className="font-bold text-zinc-900 dark:text-zinc-100">{user.name}</span>
+                          {user.is_connection_user && (
+                            <span className="text-xs font-medium text-blue-600">
+                              Usuário de conexão
+                            </span>
+                          )}
                           {user.id && (
                             <span className="max-w-[420px] truncate text-xs text-zinc-500" title={user.id}>
                               ID RouterOS: {user.id}
+                            </span>
+                          )}
+                          {getJobLabel(user) && (
+                            <span className={`mt-1 flex items-center text-xs font-medium ${user.job_status === "failed" ? "text-red-600" : user.job_status === "completed" ? "text-green-600" : "text-blue-600"}`}>
+                              {RUNNING_JOB_STATUSES.includes(user.job_status || "") && (
+                                <Spinner className="mr-1 h-3 w-3" />
+                              )}
+                              {getJobLabel(user)}
                             </span>
                           )}
                         </div>
@@ -355,32 +432,10 @@ export default function MikrotikUsersPage() {
           </div>
 
           <div className="grid gap-2">
-            {actionUser?.disabled ? (
-              <Button
-                variant="outline"
-                className="justify-start"
-                disabled={actionUser ? !!rowLoading[actionUser.id] : false}
-                onClick={() => actionUser && handleToggleUser(actionUser)}
-              >
-                <Eye className="mr-2 h-4 w-4" />
-                Habilitar usuário
-              </Button>
-            ) : (
-              <Button
-                variant="outline"
-                className="justify-start"
-                disabled={actionUser ? !!rowLoading[actionUser.id] : false}
-                onClick={() => actionUser && handleToggleUser(actionUser)}
-              >
-                <EyeOff className="mr-2 h-4 w-4" />
-                Desabilitar usuário
-              </Button>
-            )}
-
             <Button
               variant="outline"
               className="justify-start"
-              disabled={actionUser ? !!rowLoading[actionUser.id] : false}
+              disabled={actionUser ? !!rowLoading[actionUser.id] || hasActiveJob(actionUser) : false}
               onClick={() => {
                 setPasswordUser(actionUser);
                 setActionUser(null);
@@ -388,6 +443,15 @@ export default function MikrotikUsersPage() {
             >
               <KeyRound className="mr-2 h-4 w-4" />
               Mudar senha
+            </Button>
+            <Button
+              variant="outline"
+              className="justify-start"
+              disabled={actionUser ? !!rowLoading[actionUser.id] || hasActiveJob(actionUser) : false}
+              onClick={() => actionUser && handleStatusChange(actionUser)}
+            >
+              {actionUser?.disabled ? <ToggleRight className="mr-2 h-4 w-4" /> : <ToggleLeft className="mr-2 h-4 w-4" />}
+              {actionUser?.disabled ? "Habilitar usuário" : "Desabilitar usuário"}
             </Button>
           </div>
 

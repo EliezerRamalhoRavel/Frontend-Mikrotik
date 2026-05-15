@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { LogOut, Menu, Router as RouterIcon } from 'lucide-react';
 import { useState } from 'react';
 import { authService } from '@/api/authService';
+import { RouterUserPasswordProgressToast } from '@/components/mikrotik/RouterUserPasswordProgressToast';
 
 export function AppLayout() {
   const { user, logout } = useAuth();
@@ -94,10 +95,12 @@ export function AppLayout() {
                 </div>
              </div>
             )}
-            
+
             <Outlet />
         </main>
       </div>
+
+      <RouterUserPasswordProgressToast />
     </div>
   );
 }

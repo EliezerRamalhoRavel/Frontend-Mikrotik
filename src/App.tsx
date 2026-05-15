@@ -9,6 +9,7 @@ import LoginPage from "@/pages/Login";
 import DashboardPage from "@/pages/Dashboard";
 import MikrotiksPage from "@/pages/Mikrotiks";
 import MikrotikUsersPage from "@/pages/MikrotikUsersPage";
+import MikrotikBulkPasswordPage from "@/pages/MikrotikBulkPasswordPage";
 import BackupsPage from "@/pages/Backups";
 import PingTargetsPage from "@/pages/PingTargets";
 import AuditLogsPage from "@/pages/AuditLogs";
@@ -48,6 +49,7 @@ function App() {
               
               <Route path="/mikrotiks" element={<MikrotiksPage />} />
               <Route path="/mikrotiks/:deviceId/users" element={<MikrotikUsersPage />} />
+              <Route path="/mikrotiks/senha-em-massa" element={<MikrotikBulkPasswordPage />} />
               <Route path="/backups" element={<BackupsPage />} />
               <Route path="/ping-targets" element={<PingTargetsPage />} />
               <Route path="/logs" element={<AuditLogsPage />} />

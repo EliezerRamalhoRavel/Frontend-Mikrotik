@@ -11,7 +11,8 @@ import {
   Activity,
   Building2,
   Settings,
-  Cpu
+  Cpu,
+  KeyRound
 } from 'lucide-react';
 
 export function NavLinks() {
@@ -27,14 +28,20 @@ export function NavLinks() {
       label: 'Dashboard',
       visible: true 
     },
-    { 
-      to: '/mikrotiks', 
-      icon: Router, 
+    {
+      to: '/mikrotiks',
+      icon: Router,
       label: 'Dispositivos',
-      visible: can('device:read') 
+      visible: can('device:read')
     },
-    { 
-      to: '/backups', 
+    {
+      to: '/mikrotiks/senha-em-massa',
+      icon: KeyRound,
+      label: 'Senha MKs',
+      visible: !!user?.is_root
+    },
+    {
+      to: '/backups',
       icon: HardDrive, 
       label: 'Backups',
       visible: can('backup:read') 
