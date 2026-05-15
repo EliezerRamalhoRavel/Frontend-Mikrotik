@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useSearchParams } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow
 } from "@/components/ui/table";
@@ -10,7 +10,7 @@ import { Input } from "@/components/ui/input";
 import {
   Loader2, Plus, Router, Trash2, Unplug, CheckCircle2, Edit, AlertTriangle,
   PauseCircle, PlayCircle, Search, ArrowUpDown, ArrowUp, ArrowDown,
-  ShieldCheck, ShieldAlert
+  ShieldCheck, ShieldAlert, Users
 } from "lucide-react";
 import { toast } from "sonner";
 import { mikrotikService } from "@/api/mikrotikService";
@@ -48,6 +48,7 @@ const InterfaceBadge = ({ name, isDown, isActive }: { name: string; isDown: bool
 };
 
 export default function MikrotiksPage() {
+  const navigate = useNavigate();
   const [allMikrotiks, setAllMikrotiks] = useState<Mikrotik[]>([]);
   const [mikrotiks, setMikrotiks] = useState<Mikrotik[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -338,6 +339,15 @@ export default function MikrotiksPage() {
                       </TableCell>
                       <TableCell className="text-right pr-6">
                         <div className="flex justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => navigate(`/mikrotiks/${mk.id}/users`)}
+                            className="h-8 w-8 hover:bg-emerald-50 hover:text-emerald-700"
+                            title="Usuários PPP"
+                          >
+                            <Users className="h-4 w-4" />
+                          </Button>
                           <Button
                             variant="ghost"
                             size="icon"

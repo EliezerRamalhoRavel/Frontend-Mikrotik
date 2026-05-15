@@ -11,6 +11,11 @@ interface TwoFactorSetupResponse {
     uri: string;
 }
 
+interface StepUpTokenResponse {
+    step_up_token: string;
+    expires_in: number;
+}
+
 export const authService = {
   login: async (credentials: LoginCredentials): Promise<AuthResponse> => {
     const formData = new URLSearchParams();
@@ -72,6 +77,11 @@ export const authService = {
 
   changePassword: async (data: ChangePasswordPayload) => {
       await api.patch("/users/me/change-password", data);
+  },
+
+  confirmPassword: async (password: string): Promise<StepUpTokenResponse> => {
+      const { data } = await api.post<StepUpTokenResponse>("/auth/confirm-password", { password });
+      return data;
   },
 
   setup2fa: async (): Promise<TwoFactorSetupResponse> => {

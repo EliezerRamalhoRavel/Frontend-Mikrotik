@@ -43,6 +43,11 @@ export const mikrotikService = {
     }
   },
 
+  getById: async (id: string): Promise<Mikrotik> => {
+    const { data } = await api.get<Mikrotik>(`/devices/${id}`);
+    return data;
+  },
+
   create: async (payload: MikrotikCreate): Promise<Mikrotik> => {
     const { data } = await api.post<Mikrotik>("/devices", payload);
     return data;
