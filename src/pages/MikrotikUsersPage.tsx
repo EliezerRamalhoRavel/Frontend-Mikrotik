@@ -56,6 +56,24 @@ type PendingAction =
 
 const RUNNING_JOB_STATUSES = ["pending", "processing", "retrying"];
 
+const formatPasswordUpdatedAt = (value: string) => {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+
+  return date.toLocaleString("pt-BR", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+  });
+};
+
+const getJobRequesterLabel = (user: MikrotikUser) => {
+  return user.job_requested_by_user_name || user.job_requested_by_user_email || null;
+};
+
 export default function MikrotikUsersPage() {
   const { deviceId } = useParams<{ deviceId: string }>();
   const navigate = useNavigate();
@@ -252,7 +270,16 @@ export default function MikrotikUsersPage() {
     if (user.job_status === "pending") return action === "senha" ? "Atualizando senha..." : "Atualizando status...";
     if (user.job_status === "processing") return action === "senha" ? "Atualizando senha..." : "Atualizando status...";
     if (user.job_status === "retrying") return action === "senha" ? "Atualizando senha... nova tentativa" : "Atualizando status... nova tentativa";
-    if (user.job_status === "completed") return action === "senha" ? "Senha atualizada" : "Status atualizado";
+    if (user.job_status === "completed") {
+      const requesterLabel = getJobRequesterLabel(user);
+      const requesterText = requesterLabel ? ` por ${requesterLabel}` : "";
+      if (action === "status") return `Status atualizado${requesterText}`;
+
+      const completedAt = user.job_validated_at || user.job_processed_at;
+      return completedAt
+        ? `Senha atualizada em ${formatPasswordUpdatedAt(completedAt)}${requesterText}`
+        : `Senha atualizada${requesterText}`;
+    }
     if (user.job_status === "failed") return action === "senha" ? "Não foi possível atualizar a senha" : "Não foi possível atualizar o status";
     return null;
   };

@@ -13,6 +13,9 @@ Commit analisado: `2f51e4c`
 ```bash
 npm run build
 npx eslint src/components/ui/spinner.tsx src/lib/routerUserPasswordProgress.ts src/components/mikrotik/RouterUserPasswordProgressToast.tsx src/components/layout/AppLayout.tsx src/pages/MikrotikUsersPage.tsx src/pages/MikrotikBulkPasswordPage.tsx
+npx eslint src/components/mikrotik/RouterUserPasswordProgressToast.tsx src/pages/MikrotikUsersPage.tsx src/lib/routerUserPasswordProgress.ts src/api/mikrotikUsersService.ts src/types/mikrotikUsers.ts
+npx eslint src/components/mikrotik/MikrotikUserConfirmPasswordModal.tsx src/pages/MikrotikUsersPage.tsx src/pages/MikrotikBulkPasswordPage.tsx
+npx eslint src/components/mikrotik/RouterUserPasswordProgressToast.tsx src/pages/MikrotikUsersPage.tsx src/types/mikrotikUsers.ts src/components/mikrotik/MikrotikUserConfirmPasswordModal.tsx
 /home/elizerramalho/evo/api_mikrotik/venv/bin/pytest /home/elizerramalho/evo/api_mikrotik/tests/test_mikrotik_users_feature.py -q
 /home/elizerramalho/evo/api_mikrotik/venv/bin/pytest
 ```
@@ -26,6 +29,104 @@ npx eslint src/components/ui/spinner.tsx src/lib/routerUserPasswordProgress.ts s
 - [ ] Cobertura minima de 95% comprovada
 - [x] Tela nova de usuarios PPP implementada com validacao por build
 - [x] Camada de confirmacao de senha do usuario logado aplicada nas acoes sensiveis
+
+## Ajuste 2026-05-18 - Horario real da senha atualizada
+
+Data da validacao local: 2026-05-18 09:18:25 -03
+
+Atualizacao complementar: 2026-05-18 09:23:33 -03
+
+Objetivo do ajuste: corrigir o horario da mensagem `Senha atualizada em ...`, que estava sendo recalculado no frontend ao abrir/recarregar a tela quando a API nao retornava o horario real do job.
+
+Objetivo complementar: mostrar tambem o tecnico/usuario do sistema que solicitou a acao de senha/status no MikroTik.
+
+Arquivos frontend alterados:
+
+- [x] `/home/elizerramalho/evo/Frontend-Mikrotik/src/pages/MikrotikUsersPage.tsx`: removido fallback com horario local para jobs ja concluidos; a linha so mostra data/hora quando receber `job_validated_at` ou `job_processed_at` da API
+- [x] `/home/elizerramalho/evo/Frontend-Mikrotik/src/pages/MikrotikUsersPage.tsx`: mensagem de job concluido passa a exibir `por Nome/E-mail` quando o backend informar quem solicitou a acao
+- [x] `/home/elizerramalho/evo/Frontend-Mikrotik/src/pages/MikrotikBulkPasswordPage.tsx`: listagem global tambem mostra o tecnico que solicitou o ultimo job concluido
+- [x] `/home/elizerramalho/evo/Frontend-Mikrotik/src/components/mikrotik/RouterUserPasswordProgressToast.tsx`: indicador global so mostra conclusao quando encontrar job de senha concluido entre os itens rastreados e inclui `Técnico Nome/E-mail` nos detalhes quando disponivel
+- [x] `/home/elizerramalho/evo/Frontend-Mikrotik/src/types/mikrotikUsers.ts`: tipo do usuario RouterOS passa a aceitar `job_requested_by_user_id`, `job_requested_by_user_name` e `job_requested_by_user_email`
+- [x] `/home/elizerramalho/evo/Frontend-Mikrotik/docs_testes.md`: checklist do ajuste registrado
+
+Arquivos backend alterados:
+
+- [x] `/home/elizerramalho/evo/api_mikrotik/app/api/models/mikrotik_users.py`: schema passa a expor `job_processed_at` e `job_validated_at` nos usuarios RouterOS
+- [x] `/home/elizerramalho/evo/api_mikrotik/app/api/models/mikrotik_users.py`: schema passa a expor `job_requested_by_user_id`, `job_requested_by_user_name` e `job_requested_by_user_email`
+- [x] `/home/elizerramalho/evo/api_mikrotik/app/services/mikrotik_user_service.py`: service passa os horarios reais e os dados do tecnico solicitante do ultimo job para a resposta
+- [x] `/home/elizerramalho/evo/api_mikrotik/tests/test_mikrotik_users_feature.py`: teste garante que jobs concluidos devolvem `job_processed_at`, `job_validated_at` e dados do usuario solicitante
+
+Checklist TDD e validacao:
+
+- [x] Happy path: troca de senha concluida usa horario real `validated_at`/`processed_at` retornado pelo backend
+- [x] Happy path: recarregar a tela nao altera o horario exibido
+- [x] Sad path: job concluido sem horario real nao recebe horario falso do frontend
+- [x] Sad path: abrir apenas a tela de edicao nao altera horario da ultima senha atualizada
+- [x] Contrato backend validado para expor os horarios reais do job
+- [x] Happy path: job concluido mostra o tecnico/usuario do sistema que solicitou a acao quando o usuario ainda existe
+- [x] Sad path: job sem tecnico associado continua exibindo status/horario sem quebrar a tela
+
+Resultado dos comandos:
+
+- [x] `npx eslint src/components/mikrotik/RouterUserPasswordProgressToast.tsx src/pages/MikrotikUsersPage.tsx src/pages/MikrotikBulkPasswordPage.tsx src/types/mikrotikUsers.ts src/components/mikrotik/MikrotikUserConfirmPasswordModal.tsx`: executado com sucesso em `/home/elizerramalho/evo/Frontend-Mikrotik`
+- [x] `npm run build`: executado com sucesso em `/home/elizerramalho/evo/Frontend-Mikrotik`
+- [x] `/home/elizerramalho/evo/api_mikrotik/venv/bin/pytest /home/elizerramalho/evo/api_mikrotik/tests/test_mikrotik_users_feature.py -q`: 13 testes passaram em `/home/elizerramalho/evo/api_mikrotik`
+- [ ] Cobertura global frontend minima de 95% comprovada
+- [ ] Cobertura global backend minima de 95% comprovada
+
+## Ajuste 2026-05-18 - Clareza no modal de confirmacao do tecnico
+
+Data da validacao local: 2026-05-18 08:53:57 -03
+
+Objetivo do ajuste: evitar confusao no modal de confirmacao antes de alterar senha de usuario MikroTik. A senha solicitada e do tecnico logado no sistema, nao do usuario RouterOS selecionado.
+
+Arquivos frontend alterados:
+
+- [x] `/home/elizerramalho/evo/Frontend-Mikrotik/src/components/mikrotik/MikrotikUserConfirmPasswordModal.tsx`: modal passa a mostrar texto explicativo, bloco `Técnico` com nome/e-mail do usuario logado e bloco separado `Alteração solicitada para` com o alvo MikroTik
+- [x] `/home/elizerramalho/evo/Frontend-Mikrotik/docs_testes.md`: checklist do ajuste registrado
+
+Checklist TDD e validacao:
+
+- [x] Happy path: tecnico logado visualiza o proprio nome/e-mail antes de digitar a senha
+- [x] Happy path: alvo MikroTik continua visivel como contexto da alteracao solicitada
+- [x] Happy path: campo de senha deixa claro que espera a `Senha do técnico`
+- [x] Sad path: modal sem alvo informado ainda mostra o tecnico e permite confirmacao
+- [x] Sad path: estado de carregamento continua desabilitando campo e botoes durante a confirmacao
+
+Resultado dos comandos:
+
+- [x] `npx eslint src/components/mikrotik/MikrotikUserConfirmPasswordModal.tsx src/pages/MikrotikUsersPage.tsx src/pages/MikrotikBulkPasswordPage.tsx`: executado com sucesso em `/home/elizerramalho/evo/Frontend-Mikrotik`
+- [x] `npm run build`: executado com sucesso em `/home/elizerramalho/evo/Frontend-Mikrotik`
+- [ ] Cobertura global frontend minima de 95% comprovada
+
+## Ajuste 2026-05-18 - Conclusao visual da troca de senha individual
+
+Data da validacao local: 2026-05-18 08:38:53 -03
+
+Objetivo do ajuste: corrigir a experiencia visual apos a troca de senha RouterOS individual, evitando que o quadro global fique apenas em `Atualizando senha... 1 de 1` depois da conclusao e exibindo a data e horario da senha atualizada na linha do usuario.
+
+Arquivos frontend alterados:
+
+- [x] `/home/elizerramalho/evo/Frontend-Mikrotik/src/components/mikrotik/RouterUserPasswordProgressToast.tsx`: indicador global passa a mostrar `Concluído`, icone verde de sucesso, `Senha atualizada em DD/MM/AAAA HH:MM:SS` e os dados do cliente/usuario antes de sair da tela
+- [x] `/home/elizerramalho/evo/Frontend-Mikrotik/src/pages/MikrotikUsersPage.tsx`: linha do usuario passa a mostrar `Senha atualizada em DD/MM/AAAA HH:MM:SS` quando o job de senha estiver concluido
+- [x] `/home/elizerramalho/evo/Frontend-Mikrotik/src/types/mikrotikUsers.ts`: tipo do usuario RouterOS preparado para receber `job_processed_at` e `job_validated_at` da API quando esses horarios estiverem disponiveis
+- [x] `/home/elizerramalho/evo/Frontend-Mikrotik/docs_testes.md`: checklist do ajuste registrado
+
+Checklist TDD e validacao:
+
+- [x] Happy path: job de senha concluido troca o quadro global de `Atualizando senha...` para `Concluído`
+- [x] Happy path: job de senha concluido exibe `Senha atualizada em DD/MM/AAAA HH:MM:SS` no quadro global
+- [x] Happy path: linha do usuario concluido exibe `Senha atualizada em DD/MM/AAAA HH:MM:SS`
+- [x] Sad path: jobs `pending`, `processing` e `retrying` continuam exibindo spinner e texto de atualizacao
+- [x] Sad path: falha na consulta de progresso continua mantendo o indicador para nova tentativa, sem falso positivo de conclusao
+- [x] Compatibilidade: se a API enviar `job_validated_at` ou `job_processed_at`, o frontend usa o horario real do job
+- [x] Compatibilidade: se a API ainda nao enviar esses campos, o frontend registra o horario local em que observou a conclusao
+
+Resultado dos comandos:
+
+- [x] `npx eslint src/components/mikrotik/RouterUserPasswordProgressToast.tsx src/pages/MikrotikUsersPage.tsx src/lib/routerUserPasswordProgress.ts src/api/mikrotikUsersService.ts src/types/mikrotikUsers.ts`: executado com sucesso em `/home/elizerramalho/evo/Frontend-Mikrotik`
+- [x] `npm run build`: executado com sucesso em `/home/elizerramalho/evo/Frontend-Mikrotik`
+- [ ] Cobertura global frontend minima de 95% comprovada
 
 ## Observacoes
 
@@ -160,6 +261,29 @@ Resultado dos comandos:
 - [x] `/home/elizerramalho/evo/api_mikrotik/app/workers/mikrotik_user_utils.py`: 100% no recorte de cobertura da feature
 - [ ] Cobertura global backend minima de 95% comprovada
 - [ ] Cobertura frontend minima de 95% comprovada
+
+## Ajuste 2026-05-15 - Limpeza do indicador de troca de senha individual
+
+Objetivo do ajuste: corrigir o indicador global `Atualizando senha...` que permanecia visivel depois do backend concluir e validar a troca de senha RouterOS. A causa identificada foi que o toast global consultava primeiro o inventario geral `/api/v1/devices/router-users`, endpoint restrito a root. Em telas individuais, usuarios sem permissao root podiam receber erro nessa checagem e o indicador era mantido na tela por seguranca.
+
+Arquivos frontend alterados:
+
+- [x] `/home/elizerramalho/evo/Frontend-Mikrotik/src/components/mikrotik/RouterUserPasswordProgressToast.tsx`: validacao do progresso alterada para consultar primeiro `/api/v1/devices/{device_id}/router-users` por dispositivo rastreado e usar o inventario geral apenas como fallback
+- [x] `/home/elizerramalho/evo/Frontend-Mikrotik/docs_testes.md`: checklist do ajuste registrado
+
+Checklist TDD e validacao:
+
+- [x] Indicador global continua lendo os itens rastreados no `localStorage`
+- [x] Troca individual de senha valida o status pelo endpoint do proprio dispositivo
+- [x] Troca em massa preserva fallback pelo inventario geral root
+- [x] Indicador global e removido quando nao houver jobs `pending`, `processing` ou `retrying` apos a janela de seguranca
+- [x] Falha de todas as consultas ainda mantem o indicador para nova tentativa, evitando falso positivo de conclusao
+
+Resultado dos comandos:
+
+- [x] `npx eslint src/components/mikrotik/RouterUserPasswordProgressToast.tsx src/pages/MikrotikUsersPage.tsx src/lib/routerUserPasswordProgress.ts src/api/mikrotikUsersService.ts src/types/mikrotikUsers.ts`: executado com sucesso em `/home/elizerramalho/evo/Frontend-Mikrotik`
+- [x] `npm run build`: executado com sucesso em `/home/elizerramalho/evo/Frontend-Mikrotik`
+- [ ] Cobertura global frontend minima de 95% comprovada
 
 ## Ajuste 2026-05-15 - Funcao root para troca de senha em massa
 

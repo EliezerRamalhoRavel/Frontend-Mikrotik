@@ -66,6 +66,10 @@ interface DeviceGroup {
 const getSelectionKey = (user: MikrotikRouterUserInventory) => `${user.device_id}:${user.id}`;
 const RUNNING_JOB_STATUSES = ["pending", "processing", "retrying"];
 
+const getJobRequesterLabel = (user: MikrotikRouterUserInventory) => {
+  return user.job_requested_by_user_name || user.job_requested_by_user_email || null;
+};
+
 export default function MikrotikBulkPasswordPage() {
   const { user: currentUser } = useAuth();
   const [users, setUsers] = useState<MikrotikRouterUserInventory[]>([]);
@@ -302,7 +306,11 @@ export default function MikrotikBulkPasswordPage() {
     if (user.job_status === "pending") return action === "senha" ? "Atualizando senha..." : "Atualizando status...";
     if (user.job_status === "processing") return action === "senha" ? "Atualizando senha..." : "Atualizando status...";
     if (user.job_status === "retrying") return action === "senha" ? "Atualizando senha... nova tentativa" : "Atualizando status... nova tentativa";
-    if (user.job_status === "completed") return action === "senha" ? "Senha atualizada" : "Status atualizado";
+    if (user.job_status === "completed") {
+      const requesterLabel = getJobRequesterLabel(user);
+      const requesterText = requesterLabel ? ` por ${requesterLabel}` : "";
+      return action === "senha" ? `Senha atualizada${requesterText}` : `Status atualizado${requesterText}`;
+    }
     if (user.job_status === "failed") return action === "senha" ? "Não foi possível atualizar a senha" : "Não foi possível atualizar o status";
     return null;
   };

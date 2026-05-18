@@ -12,6 +12,11 @@ export interface MikrotikUser {
   job_action: string | null;
   job_attempts: number;
   job_last_error: string | null;
+  job_processed_at?: string | null;
+  job_validated_at?: string | null;
+  job_requested_by_user_id?: string | null;
+  job_requested_by_user_name?: string | null;
+  job_requested_by_user_email?: string | null;
 }
 
 export interface MikrotikUserUpdate {
